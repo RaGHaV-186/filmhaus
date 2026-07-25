@@ -3,10 +3,16 @@ import pickle
 import pandas as pd
 import numpy as np
 
+from sklearn.metrics.pairwise import cosine_similarity
+
 @st.cache_resource
 def load_models():
     with open("models.pkl", "rb") as f:
-        return pickle.load(f)
+        bundle = pickle.load(f)
+    # recompute derived matrices once, on startup
+    bundle["similarity"] = cosine_similarity(bundle["user_item"])
+    bundle["item_similarity"] = cosine_similarity(bundle["user_item"].T)
+    return bundle
 
 bundle = load_models()
 
