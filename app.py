@@ -75,14 +75,14 @@ if user_id_input:
     if user_id not in user_item.index:
         st.error(f"User {user_id} has no training history — try another ID.")
     else:
-        st.header("⭐ Popular")
+        st.header("Popular")
         st.table(ids_to_titles(recommend_popular(user_id)))
 
-        st.header("📖 Based on your history")
+        st.header("Based on your history")
         st.table(ids_to_titles(recommend_by_history(user_id)))
 
-        st.header("👥 People like you")
+        st.header("People like you")
         st.table(ids_to_titles(recommend_for_user(user_id)))
 
-        st.header("🎯 Your taste tribe")
+        st.header("Your taste tribe")
         st.table(ids_to_titles(recommend_by_persona(user_id)))
