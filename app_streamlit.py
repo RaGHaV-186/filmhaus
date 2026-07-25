@@ -1,19 +1,21 @@
-import gradio as gr
+import streamlit as st
 import pickle
 import pandas as pd
 import numpy as np
+
 from sklearn.metrics.pairwise import cosine_similarity
 
-
+@st.cache_resource
 def load_models():
     with open("models.pkl", "rb") as f:
         bundle = pickle.load(f)
+    # recompute derived matrices once, on startup
     bundle["similarity"] = cosine_similarity(bundle["user_item"])
     bundle["item_similarity"] = cosine_similarity(bundle["user_item"].T)
     return bundle
 
-
 bundle = load_models()
+
 user_item = bundle["user_item"]
 similarity = bundle["similarity"]
 item_similarity = bundle["item_similarity"]
@@ -22,11 +24,6 @@ popularity = bundle["popularity"]
 movies = bundle["movies"]
 user_cluster = bundle["user_cluster"]
 cluster_top_films = bundle["cluster_top_films"]
-
-
-def ids_to_titles(ids):
-    return movies[movies["movie_id"].isin(ids)][["title", "genres"]].reset_index(drop=True)
-
 
 def recommend_popular(user_id, k=10):
     seen = set(user_item.loc[user_id][user_item.loc[user_id] > 0].index)
@@ -64,35 +61,28 @@ def recommend_by_persona(user_id, k=10):
     recs = [film for film in ranked if film not in seen]
     return recs[:k]
 
+def ids_to_titles(ids):
+    return movies[movies["movie_id"].isin(ids)][["title", "genres"]]
 
-def recommend_all(user_id_str):
-    user_id = int(user_id_str)
+st.title("🎬 Filmhaus Recommender")
+st.write("Enter a user ID to see recommendations from four different models.")
+
+user_id_input = st.text_input("User ID", value="635")
+
+if user_id_input:
+    user_id = int(user_id_input)
 
     if user_id not in user_item.index:
-        empty = pd.DataFrame({"info": [f"User {user_id} has no training history — try another ID."]})
-        return empty, empty, empty, empty
+        st.error(f"User {user_id} has no training history — try another ID.")
+    else:
+        st.header("Popular")
+        st.table(ids_to_titles(recommend_popular(user_id)))
 
-    popular = ids_to_titles(recommend_popular(user_id))
-    history = ids_to_titles(recommend_by_history(user_id))
-    neighbours = ids_to_titles(recommend_for_user(user_id))
-    persona = ids_to_titles(recommend_by_persona(user_id))
+        st.header("Based on your history")
+        st.table(ids_to_titles(recommend_by_history(user_id)))
 
-    return popular, history, neighbours, persona
+        st.header("People like you")
+        st.table(ids_to_titles(recommend_for_user(user_id)))
 
-
-demo = gr.Interface(
-    fn=recommend_all,
-    inputs=gr.Textbox(label="User ID", value="635"),
-    outputs=[
-        gr.Dataframe(label="⭐ Popular"),
-        gr.Dataframe(label="📖 Based on your history"),
-        gr.Dataframe(label="👥 People like you"),
-        gr.Dataframe(label="🎯 Your taste tribe"),
-    ],
-    title="🎬 Filmhaus Recommender",
-    description="Enter a user ID to see recommendations from four different models.",
-)
-
-
-if __name__ == "__main__":
-    demo.launch()
+        st.header("Your taste tribe")
+        st.table(ids_to_titles(recommend_by_persona(user_id)))
